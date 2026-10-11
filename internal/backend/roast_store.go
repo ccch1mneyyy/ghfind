@@ -13,9 +13,12 @@ import (
 )
 
 const (
-	roastArtifactVersion    = "v11"
-	legacyRoastScoreVersion = "v9"
-	legacyRoastVersion      = "v10"
+	roastArtifactVersion = "v11"
+	// The read-only emergency tuple: the immediately previous release this
+	// runtime served. Rotate it with goCanonicalScoreVersion, or a row written
+	// by the release just superseded is not recognized as a fallback at all.
+	legacyRoastScoreVersion = "v10"
+	legacyRoastVersion      = "v11"
 )
 
 type RoastScoreIdentity struct {

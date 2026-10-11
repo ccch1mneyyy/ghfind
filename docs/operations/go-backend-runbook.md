@@ -331,8 +331,9 @@ Staging pitfalls learned from bring-up:
   `scanned_at`), and a worker scan written into the shared store is served
   back by the production Next.js site with the same timestamp.
 - Shared-store contract with the Next.js runtime (verified field-by-field
-  against `origin/main`): cache versions v10/v10/v4/v1 and every Redis
-  key/TTL match; Go omits optional scan-metric keys when unmeasured because
+  against the Next.js branch it was paired with at the time): cache versions
+  v11/v11/v4/v1 on this branch, and every Redis key/TTL shape matches; Go
+  omits optional scan-metric keys when unmeasured because
   the Node scorer treats `undefined` and `null` differently (an explicit
   `null` `top_repo_engagement_ratio` would wrongly trigger the 0.5x
   star-engagement penalty), and required arrays always serialize as `[]`.
@@ -506,14 +507,20 @@ variables and the deployment anchors are kept outside the repository under
 Both runtimes read and write the same Turso/Upstash stores under one version
 contract, and a rollback never changes schema or key names:
 
-- `config/release-versions.json` is byte-identical with `main`. Canonical: score
-  `v10`, roast `v10`, collection `v4`; read order `["v10"]`; legacy fallback
-  `v9/v10/v4` is read-only continuity data and never participates in rankings.
-- Go writes `scores.score_version=v10`,
-  `score_source_collection_version=v4`, roast artifacts at `v10`, and reads
-  only `v10`/`v4` rows — the same filters `main` uses — so either runtime can
-  serve data written by the other. Cache keys are version-pinned on both
-  sides (`scan:v4:`, `roast:v10:v10:v4:`, `verdict:v1:`), and Go omits
+- `config/release-versions.json` on this branch is the contract: target score
+  `v11`, roast `v11`, collection `v5`; read order `["v11"]`; the emergency
+  fallback tuple `v10/v11/v5` is read-only continuity data and never
+  participates in rankings. Go pins its own release set — score `v11`, roast
+  `v11`, collection `v4` — and its emergency tuple is that release's
+  predecessor: `v10/v11/v4`. A release must rotate its own previous tuple,
+  otherwise the rows it just superseded are not readable as a fallback.
+- Go writes `scores.score_version=v11`,
+  `score_source_collection_version=v4`, roast artifacts at `v11`, and reads
+  only `v11`/`v4` rows, so either runtime can serve data written by the other.
+  During a release transition a Next branch can pin a different collection
+  version than Go; every cache key is version-pinned, so the two never collide.
+  Keys are version-pinned on both sides (`scan:v4:`,
+  `roast:v11:v11:v4:<lang>:`, `verdict:v1:`), and Go omits
   unmeasured metric keys because the Node scorer treats `undefined` and
   `null` differently.
 - A version bump is a three-way coordinated change:
